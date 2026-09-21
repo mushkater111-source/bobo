@@ -457,8 +457,7 @@
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
   document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && overlay.classList.contains('open')) closeModal(); });
 
-  // TODO: якщо розміщуєте на Vercel замість Netlify — замініть на '/api/order'
-  const ORDER_ENDPOINT = '/.netlify/functions/order';
+  const ORDER_ENDPOINT = '/api/order';
 
   document.getElementById('orderForm').addEventListener('submit', async (e) => {
     e.preventDefault();
