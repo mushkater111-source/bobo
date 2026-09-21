@@ -1,28 +1,22 @@
-// Netlify Function: /.netlify/functions/order
-// Приймає замовлення з форми на сайті і безпечно пересилає його в Telegram.
-// Токен бота і chat_id беруться з змінних середовища Netlify — ніколи з коду.
+const express = require('express');
 
-exports.handler = async function (event) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ ok: false, error: 'Method not allowed' }) };
-  }
+const app = express();
+app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
+
+app.post('/api/order', async (req, res) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ ok: false, error: 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не налаштовані' }),
-    };
+    return res.status(500).json({
+      ok: false,
+      error: 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не налаштовані',
+    });
   }
 
-  let data;
-  try {
-    data = JSON.parse(event.body || '{}');
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid JSON' }) };
-  }
+  const data = req.body || {};
 
   const name = String(data.name || '').slice(0, 200).trim();
   const phone = String(data.phone || '').slice(0, 200).trim();
@@ -30,7 +24,10 @@ exports.handler = async function (event) {
   const total = String(data.total || '').slice(0, 50).trim();
 
   if (!name || !phone || !qty) {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Заповніть усі поля' }) };
+    return res.status(400).json({
+      ok: false,
+      error: 'Заповніть усі поля',
+    });
   }
 
   const text =
@@ -41,19 +38,46 @@ exports.handler = async function (event) {
     `Сума: ${total}`;
 
   try {
-    const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    });
+    const tgRes = await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+        }),
+      }
+    );
+
     const tgData = await tgRes.json();
 
     if (!tgData.ok) {
-      return { statusCode: 502, body: JSON.stringify({ ok: false, error: tgData.description || 'Telegram API error' }) };
+      return res.status(502).json({
+        ok: false,
+        error: tgData.description || 'Telegram API error',
+      });
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    return res.status(200).json({
+      ok: true,
+    });
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Server error' }) };
+    console.error(err);
+
+    return res.status(500).json({
+      ok: false,
+      error: 'Server error',
+    });
   }
-};
+});
+
+app.get('/', (req, res) => {
+  res.json({ ok: true, message: 'API is running' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
